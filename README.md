@@ -48,7 +48,7 @@ An AI-based web application that automates machine learning algorithm selection 
 
 ## 🛠️ Technology Stack
 - **Backend**: Python 3.11, FastAPI, Uvicorn, Scikit-learn, Pandas, NumPy, Joblib.
-- **Frontend**: Single Page Application, Tailwind CSS, Chart.js, Lucide Icons.
+- **Frontend**: Single Page Application, Tailwind CSS, Chart.js.
 
 ---
 
