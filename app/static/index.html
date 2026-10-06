@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoOptML - Conditional Search-Space Optimiser</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#020617',
+            },
+            surface: {
+              page: '#fafafa',
+              card: '#ffffff',
+              cardSubtle: '#f4f4f5',
+              border: '#e4e4e7',
+              borderDark: '#27272a'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-surface-page text-zinc-900 min-h-screen font-sans antialiased selection:bg-black selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-surface-border bg-white/90 backdrop-blur sticky top-0 z-40 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="goToStep(1)">
+        <div class="h-9 w-9 rounded-xl bg-black text-white flex items-center justify-center shadow-sm">
+          <i data-lucide="cpu" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-black text-lg tracking-tight text-black">AutoOptML</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-300 font-semibold uppercase tracking-wider">Enterprise</span>
+          </div>
+          <p class="text-[11px] text-zinc-500 hidden sm:block">Conditional Search-Space Optimiser for Algorithm & Architecture Selection</p>
+        </div>
+      </div>
+
+      <!-- Action Items & User Authentication -->
+      <div class="flex items-center space-x-2.5">
+        <button id="btn-abstract" class="text-xs flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-300 text-zinc-700 transition">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-zinc-900"></i>
+          <span>Abstract</span>
+        </button>
+
+        <!-- Experiments History Trigger -->
+        <button id="btn-open-experiments" class="text-xs flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-300 text-zinc-700 transition relative">
+          <i data-lucide="history" class="w-3.5 h-3.5 text-zinc-900"></i>
+          <span>My Experiments</span>
+          <span id="nav-experiments-badge" class="hidden text-[10px] px-1.5 py-0.2 rounded-full bg-black text-white font-bold">0</span>
+        </button>
+
+        <div class="h-5 w-px bg-zinc-200 mx-1"></div>
+
+        <!-- Auth Status Controls -->
+        <!-- Logged Out View -->
+        <div id="auth-logged-out" class="flex items-center space-x-2">
+          <button id="btn-quick-demo" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-900 border border-zinc-300 flex items-center space-x-1 transition">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500 fill-amber-500"></i>
+            <span>Demo Login</span>
+          </button>
+          <button id="btn-open-login" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-black hover:bg-zinc-800 text-white shadow-sm transition">
+            Sign In
+          </button>
+        </div>
+
+        <!-- Logged In View -->
+        <div id="auth-logged-in" class="hidden flex items-center space-x-2">
+          <div class="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-zinc-100 border border-zinc-200">
+            <div class="h-6 w-6 rounded-full bg-black text-white text-[11px] font-bold flex items-center justify-center" id="user-avatar">
+              U
+            </div>
+            <span class="text-xs font-semibold text-zinc-800 max-w-[120px] truncate" id="user-display-name">User</span>
+          </div>
+          <button id="btn-logout" class="text-xs p-1.5 rounded-lg hover:bg-zinc-100 border border-transparent hover:border-zinc-300 text-zinc-500 hover:text-red-600 transition" title="Log Out">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- Stepper Navigation Bar -->
+    <nav class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div id="step-nav-1" class="step-nav-item active flex items-center p-3 rounded-xl border border-zinc-900 bg-white shadow-sm transition-all">
+        <div class="step-badge active mr-3">1</div>
+        <div>
+          <p class="text-xs font-bold text-zinc-900">Data Studio</p>
+          <p class="text-[11px] text-zinc-500">Upload & Profile</p>
+        </div>
+      </div>
+
+      <div id="step-nav-2" class="step-nav-item flex items-center p-3 rounded-xl border border-zinc-200 bg-white/70 transition-all opacity-60">
+        <div class="step-badge mr-3">2</div>
+        <div>
+          <p class="text-xs font-bold text-zinc-900">Meta-Features</p>
+          <p class="text-[11px] text-zinc-500">Automated Intelligence</p>
+        </div>
+      </div>
+
+      <div id="step-nav-3" class="step-nav-item flex items-center p-3 rounded-xl border border-zinc-200 bg-white/70 transition-all opacity-60">
+        <div class="step-badge mr-3">3</div>
+        <div>
+          <p class="text-xs font-bold text-zinc-900">Search-Space</p>
+          <p class="text-[11px] text-zinc-500">Conditional Pruning</p>
+        </div>
+      </div>
+
+      <div id="step-nav-4" class="step-nav-item flex items-center p-3 rounded-xl border border-zinc-200 bg-white/70 transition-all opacity-60">
+        <div class="step-badge mr-3">4</div>
+        <div>
+          <p class="text-xs font-bold text-zinc-900">Leaderboard & Export</p>
+          <p class="text-[11px] text-zinc-500">Benchmark & Deploy</p>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Active User Banner Indicator -->
+    <div id="user-greeting-banner" class="hidden p-3 rounded-xl bg-zinc-100 border border-zinc-200 flex items-center justify-between text-xs text-zinc-700">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+        <span>Logged in as <strong id="greeting-username" class="text-black font-semibold">User</strong> (<span id="greeting-email" class="text-zinc-500">user@email.com</span>)</span>
+      </div>
+      <span class="text-zinc-500 text-[11px]">All AutoML runs are automatically saved to your SQLite database.</span>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 1: DATA STUDIO & INGESTION -->
+    <!-- ============================================== -->
+    <section id="section-step-1" class="space-y-6">
+      <div class="bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-surface-border">
+          <div>
+            <h2 class="text-xl font-extrabold text-black tracking-tight flex items-center gap-2">
+              <i data-lucide="database" class="w-5 h-5 text-zinc-900"></i>
+              Step 1: Dataset Ingestion & Target Selection
+            </h2>
+            <p class="text-xs sm:text-sm text-zinc-500 mt-1">
+              Select one of the pre-configured benchmark datasets or upload your own CSV / Excel dataset.
+            </p>
+          </div>
+          <div class="text-xs text-zinc-600 bg-zinc-100 px-3 py-1.5 rounded-lg border border-zinc-200 font-mono">
+            Formats: .csv, .xlsx, .xls
+          </div>
+        </div>
+
+        <!-- 1-Click Benchmark Presets -->
+        <div class="mt-6">
+          <p class="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4 text-black"></i>
+            One-Click Instant Benchmark Datasets
+          </p>
+          <div id="sample-datasets-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <!-- Populated via JS -->
+            <div class="p-4 rounded-xl border border-zinc-200 bg-zinc-50 animate-pulse h-24"></div>
+            <div class="p-4 rounded-xl border border-zinc-200 bg-zinc-50 animate-pulse h-24"></div>
+            <div class="p-4 rounded-xl border border-zinc-200 bg-zinc-50 animate-pulse h-24"></div>
+          </div>
+        </div>
+
+        <!-- Custom Upload Dropzone -->
+        <div class="mt-6">
+          <p class="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-3 flex items-center gap-1.5">
+            <i data-lucide="upload" class="w-4 h-4 text-black"></i>
+            Or Upload Custom Dataset File
+          </p>
+          <div id="dropzone" class="border-2 border-dashed border-zinc-300 hover:border-black rounded-2xl p-8 text-center bg-zinc-50/50 hover:bg-zinc-100/60 transition cursor-pointer group">
+            <input type="file" id="file-input" class="hidden" accept=".csv, .xlsx, .xls">
+            <div class="max-w-md mx-auto space-y-3">
+              <div class="h-12 w-12 rounded-full bg-zinc-200 text-black flex items-center justify-center mx-auto group-hover:scale-105 transition">
+                <i data-lucide="file-up" class="w-6 h-6"></i>
+              </div>
+              <p class="text-sm font-semibold text-zinc-800">
+                <span class="text-black underline font-bold">Click to browse</span> or drag and drop file here
+              </p>
+              <p class="text-xs text-zinc-500">
+                AutoOptML will automatically extract meta-features, assess missingness, and infer problem formulation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dataset Preview Panel (Appears after selection) -->
+      <div id="dataset-preview-panel" class="hidden bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm space-y-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-surface-border">
+          <div class="flex items-center space-x-3">
+            <div class="h-10 w-10 rounded-xl bg-zinc-100 text-black border border-zinc-200 flex items-center justify-center font-bold">
+              <i data-lucide="table" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 id="loaded-dataset-name" class="font-bold text-black text-base">Dataset Name</h3>
+              <p id="loaded-dataset-stats" class="text-xs text-zinc-500">0 rows • 0 columns</p>
+            </div>
+          </div>
+
+          <!-- Configuration Controls -->
+          <div class="flex flex-wrap items-center gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Target Column</label>
+              <select id="select-target-col" class="bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs text-black font-medium focus:outline-none focus:border-black">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Problem Formulation</label>
+              <select id="select-task-type" class="bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs text-black font-medium focus:outline-none focus:border-black">
+                <option value="binary_classification">Binary Classification</option>
+                <option value="multiclass_classification">Multiclass Classification</option>
+                <option value="regression">Regression</option>
+              </select>
+            </div>
+
+            <div class="self-end">
+              <button id="btn-proceed-step-2" class="px-5 py-2 rounded-lg bg-black hover:bg-zinc-800 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition">
+                <span>Analyze & Condition Search-Space</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Table -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs text-zinc-500">
+            <span>First 10 Observations Preview</span>
+            <span>Scroll horizontally to view attributes</span>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table id="preview-table" class="w-full text-xs text-left text-zinc-800">
+              <!-- Rendered via JS -->
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- STEP 2: META-FEATURE INTELLIGENCE & PROFILING -->
+    <!-- ============================================== -->
+    <section id="section-step-2" class="hidden space-y-6">
+      <div class="bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-surface-border">
+          <div>
+            <h2 class="text-xl font-extrabold text-black tracking-tight flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-black"></i>
+              Step 2: Automated Meta-Feature Extraction & Health Profiling
+            </h2>
+            <p class="text-xs sm:text-sm text-zinc-500 mt-1">
+              Extracted meta-features dynamically condition algorithm inclusion, hyperparameter architectures, and validation constraints.
+            </p>
+          </div>
+          <button id="btn-to-step-3" class="px-5 py-2 rounded-lg bg-black hover:bg-zinc-800 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition self-start sm:self-auto">
+            <span>Inspect Search-Space Optimization</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- 4 Core KPI Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+            <div class="flex items-center justify-between text-zinc-500 text-xs mb-1">
+              <span class="font-medium">Dimensions (N × P)</span>
+              <i data-lucide="grid" class="w-4 h-4 text-zinc-800"></i>
+            </div>
+            <div class="text-2xl font-black text-black" id="kpi-shape">0 × 0</div>
+            <div class="text-[11px] text-zinc-500 mt-1" id="kpi-ratio">Ratio N/P: 0.0</div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+            <div class="flex items-center justify-between text-zinc-500 text-xs mb-1">
+              <span class="font-medium">Feature Encoding</span>
+              <i data-lucide="layers" class="w-4 h-4 text-zinc-800"></i>
+            </div>
+            <div class="text-2xl font-black text-black" id="kpi-features">0 Num • 0 Cat</div>
+            <div class="text-[11px] text-zinc-500 mt-1" id="kpi-types-detail">Excluding identifiers</div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+            <div class="flex items-center justify-between text-zinc-500 text-xs mb-1">
+              <span class="font-medium">Missingness & Imputation</span>
+              <i data-lucide="alert-circle" class="w-4 h-4 text-zinc-800"></i>
+            </div>
+            <div class="text-2xl font-black text-black" id="kpi-missing">0%</div>
+            <div class="text-[11px] text-zinc-500 mt-1" id="kpi-missing-cells">0 missing cells</div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-zinc-50 border border-zinc-200">
+            <div class="flex items-center justify-between text-zinc-500 text-xs mb-1">
+              <span class="font-medium">Target Balance</span>
+              <i data-lucide="target" class="w-4 h-4 text-zinc-800"></i>
+            </div>
+            <div class="text-lg font-black text-black truncate" id="kpi-target-task">Task Type</div>
+            <div class="text-[11px] text-zinc-500 mt-1" id="kpi-target-balance">Ratio: 1.0:1</div>
+          </div>
+        </div>
+
+        <!-- Diagnostic Warnings & Alerts -->
+        <div id="diagnostic-warnings-container" class="space-y-2">
+          <!-- Populated via JS -->
+        </div>
+
+        <!-- Attributes Meta-Profiles Table -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-600 flex items-center gap-1.5">
+              <i data-lucide="list" class="w-4 h-4 text-black"></i>
+              Attribute Profiles & Pipeline Inferences
+            </h4>
+            <span class="text-xs text-zinc-500 font-mono" id="columns-count-label">0 attributes</span>
+          </div>
+          <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white max-h-72 overflow-y-auto">
+            <table class="w-full text-xs text-left text-zinc-800">
+              <thead class="bg-zinc-100 text-zinc-600 sticky top-0 border-b border-zinc-200 font-semibold">
+                <tr>
+                  <th class="py-2.5 px-3">Column Name</th>
+                  <th class="py-2.5 px-3">Inferred Role</th>
+                  <th class="py-2.5 px-3">Missing</th>
+                  <th class="py-2.5 px-3">Unique</th>
+                  <th class="py-2.5 px-3">Sample Values</th>
+                </tr>
+              </thead>
+              <tbody id="column-profiles-tbody" class="divide-y divide-zinc-200 font-mono">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- STEP 3: CONDITIONAL SEARCH-SPACE OPTIMISER -->
+    <!-- ============================================== -->
+    <section id="section-step-3" class="hidden space-y-6">
+      <div class="bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm space-y-6">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-surface-border">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-xl font-extrabold text-black tracking-tight flex items-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-black"></i>
+                Step 3: Conditional Search-Space Optimization & Pruning Rationale
+              </h2>
+            </div>
+            <p class="text-xs sm:text-sm text-zinc-500 mt-1">
+              Unsuitable models are pruned mathematically to avoid wasted compute, while tailored hyperparameter architectures are generated.
+            </p>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <div class="bg-zinc-100 px-3.5 py-2 rounded-xl border border-zinc-200 text-xs flex items-center space-x-2">
+              <span class="text-zinc-600">Search-Space Reduction:</span>
+              <span id="stat-prune-rate" class="font-black text-black">0% Pruned</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Triggered Optimization Rules Banner -->
+        <div class="space-y-2">
+          <p class="text-xs font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
+            <i data-lucide="zap" class="w-4 h-4 text-black"></i>
+            Active Conditioned Rules Triggered by Meta-Features
+          </p>
+          <div id="triggered-rules-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Split Grid: Retained vs Pruned -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          
+          <!-- Left: Admitted Models (7 cols) -->
+          <div class="lg:col-span-7 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-black flex items-center gap-1.5">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-600"></i>
+                Admitted Models & Architectures (<span id="retained-count">0</span>)
+              </h3>
+              <span class="text-xs text-zinc-500">Selected for Benchmark Evaluation</span>
+            </div>
+
+            <div id="selected-algorithms-container" class="space-y-3">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Right: Pruned Models (5 cols) -->
+          <div class="lg:col-span-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-zinc-700 flex items-center gap-1.5">
+                <i data-lucide="x-circle" class="w-4 h-4 text-zinc-400"></i>
+                Pruned Models & Scientific Rationale (<span id="pruned-count">0</span>)
+              </h3>
+              <span class="text-xs text-zinc-500">Eliminated to Save Compute</span>
+            </div>
+
+            <div id="pruned-algorithms-container" class="space-y-3">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Benchmark Execution Bar -->
+        <div class="p-5 rounded-2xl bg-zinc-50 border border-zinc-300 flex flex-col md:flex-row items-center justify-between gap-4 mt-6">
+          <div class="flex flex-wrap items-center gap-4">
+            <div>
+              <label class="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1">Target Optimization Metric</label>
+              <select id="select-primary-metric" class="bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs text-black font-medium focus:outline-none focus:border-black">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1">Cross-Validation Folds</label>
+              <select id="select-cv-folds" class="bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs text-black font-medium focus:outline-none focus:border-black">
+                <option value="5" selected>5-Fold Cross-Validation (Stratified)</option>
+                <option value="3">3-Fold Cross-Validation (Fast)</option>
+                <option value="10">10-Fold Cross-Validation (Rigorous)</option>
+              </select>
+            </div>
+          </div>
+
+          <button id="btn-start-training" class="w-full md:w-auto px-7 py-3 rounded-xl bg-black hover:bg-zinc-800 text-white font-extrabold text-sm flex items-center justify-center space-x-2 shadow-md transition transform hover:scale-[1.01]">
+            <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+            <span>Execute Training & Benchmark</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- STEP 4 & 5: BENCHMARK LEADERBOARD & DIAGNOSTICS -->
+    <!-- ============================================== -->
+    <section id="section-step-4" class="hidden space-y-8">
+      
+      <!-- Training In Progress Spinner -->
+      <div id="training-loader" class="hidden bg-surface-card rounded-2xl p-12 border border-surface-border text-center space-y-4 shadow-sm">
+        <div class="inline-block relative w-14 h-14">
+          <div class="absolute inset-0 rounded-full border-4 border-zinc-200"></div>
+          <div class="absolute inset-0 rounded-full border-4 border-black border-t-transparent animate-spin"></div>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-black">Training & Benchmarking Conditioned Architectures...</h3>
+          <p class="text-xs text-zinc-500 mt-1">Executing Scikit-learn pipelines with cross-validation across holdout samples.</p>
+        </div>
+      </div>
+
+      <!-- Results Container -->
+      <div id="results-container" class="space-y-8">
+        
+        <!-- ============================================== -->
+        <!-- FINAL RECOMMENDED MODEL & DECISION RATIONALE -->
+        <!-- ============================================== -->
+        <div id="recommendation-report-card" class="bg-surface-card rounded-2xl p-6 sm:p-8 border-2 border-black shadow-md space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full bg-black text-white">
+                  Official AI Model Recommendation
+                </span>
+                <span id="rec-confidence-badge" class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
+                  Confidence: Very High
+                </span>
+              </div>
+              <h2 id="rec-title-model" class="text-2xl sm:text-3xl font-black text-black tracking-tight mt-2">
+                Recommended Model: Random Forest Classifier
+              </h2>
+              <p id="rec-title-config" class="text-xs text-zinc-600 font-mono mt-1">
+                Architecture: Standard Forest (100 trees, depth 10) • Primary Score: 0.9737
+              </p>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <button id="btn-download-recommended-joblib" class="px-5 py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>Download Model (.joblib)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Executive Summary Text Box -->
+          <div class="p-4 sm:p-5 rounded-xl bg-zinc-50 border border-zinc-200">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-zinc-700 flex items-center gap-1.5 mb-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-black"></i>
+              Executive Decision Rationale & Recommendation
+            </h4>
+            <p id="rec-executive-summary" class="text-xs sm:text-sm text-zinc-800 leading-relaxed font-sans">
+              <!-- Rendered via JS -->
+            </p>
+          </div>
+
+          <!-- Decision Drivers & Competitive Analysis Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Left: Why this model was chosen -->
+            <div class="p-4 rounded-xl border border-zinc-200 bg-white space-y-3">
+              <h5 class="text-xs font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+                Key Selection Drivers
+              </h5>
+              <ul id="rec-decision-drivers" class="space-y-2 text-xs text-zinc-700">
+                <!-- Populated via JS -->
+              </ul>
+            </div>
+
+            <!-- Right: Production & Comparison specs -->
+            <div class="p-4 rounded-xl border border-zinc-200 bg-white space-y-3">
+              <h5 class="text-xs font-bold uppercase tracking-wider text-black flex items-center gap-1.5">
+                <i data-lucide="shield-check" class="w-4 h-4 text-black"></i>
+                Production Deployment Readiness
+              </h5>
+              <div class="space-y-2 text-xs">
+                <div class="flex items-center justify-between pb-1.5 border-b border-zinc-100">
+                  <span class="text-zinc-500">Runner-Up Candidate:</span>
+                  <span id="rec-runner-up-label" class="font-bold text-zinc-800">Support Vector Machine</span>
+                </div>
+                <div class="flex items-center justify-between pb-1.5 border-b border-zinc-100">
+                  <span class="text-zinc-500">Performance Advantage:</span>
+                  <span id="rec-lift-label" class="font-black text-emerald-600 font-mono">+4.2% Lift</span>
+                </div>
+                <div class="flex items-center justify-between pb-1.5 border-b border-zinc-100">
+                  <span class="text-zinc-500">Validation Methodology:</span>
+                  <span class="font-medium text-zinc-800 font-mono">Stratified Cross-Validation</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-zinc-500">Deployment Status:</span>
+                  <span class="inline-flex items-center text-emerald-700 font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 mr-1.5"></span>
+                    Ready for Production
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Champion Best Model Winner Banner -->
+        <div id="winner-banner" class="rounded-2xl p-6 sm:p-8 bg-zinc-900 text-white shadow-xl relative overflow-hidden">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div class="flex items-start space-x-4">
+              <div class="h-14 w-14 rounded-2xl bg-white text-black flex items-center justify-center shadow-lg shrink-0">
+                <i data-lucide="trophy" class="w-7 h-7"></i>
+              </div>
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="text-[11px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                    Recommended Champion Model
+                  </span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-semibold" id="winner-saved-badge">
+                    ✓ Saved to Database
+                  </span>
+                </div>
+                <h2 id="winner-model-name" class="text-2xl font-black text-white mt-1">Random Forest Classifier</h2>
+                <p id="winner-config-name" class="text-xs text-zinc-400 font-mono mt-0.5">Configuration: Standard Forest (100 trees, depth 10)</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div class="text-right">
+                <span id="winner-metric-label" class="text-[11px] uppercase tracking-wider text-zinc-400 block font-medium">Primary Score</span>
+                <span id="winner-metric-score" class="text-3xl font-black text-white font-mono">0.0000</span>
+              </div>
+              <div class="h-10 w-px bg-zinc-700"></div>
+              <div class="space-y-1.5">
+                <button id="btn-download-best-model" class="w-full text-xs font-bold px-4 py-2 rounded-lg bg-white hover:bg-zinc-100 text-black flex items-center justify-center space-x-1.5 shadow transition">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                  <span>Download .joblib</span>
+                </button>
+                <button id="btn-jump-code" class="w-full text-xs font-semibold px-4 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 flex items-center justify-center space-x-1.5 transition">
+                  <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                  <span>Inference Code</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Model Leaderboard Table -->
+        <div class="bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 class="text-lg font-extrabold text-black tracking-tight flex items-center gap-2">
+                <i data-lucide="award" class="w-5 h-5 text-black"></i>
+                Performance Benchmark Leaderboard
+              </h3>
+              <p class="text-xs text-zinc-500">Ranked by primary metric on cross-validated holdout test splits.</p>
+            </div>
+            <span class="text-xs text-zinc-500 font-mono" id="leaderboard-count-label">0 Models Benchmarked</span>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+            <table class="w-full text-xs text-left text-zinc-800">
+              <thead class="bg-zinc-100 text-zinc-600 border-b border-zinc-200 font-semibold">
+                <tr>
+                  <th class="py-3 px-4">Rank</th>
+                  <th class="py-3 px-4">Algorithm & Architecture</th>
+                  <th class="py-3 px-4">Family</th>
+                  <th class="py-3 px-4" id="th-primary-metric">Primary Score</th>
+                  <th class="py-3 px-4">Accuracy / RMSE</th>
+                  <th class="py-3 px-4">F1 / R²</th>
+                  <th class="py-3 px-4">Train Time</th>
+                  <th class="py-3 px-4">Badges</th>
+                </tr>
+              </thead>
+              <tbody id="leaderboard-tbody" class="divide-y divide-zinc-200 font-mono">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Comparative Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-surface-card rounded-2xl p-6 border border-surface-border shadow-sm space-y-3">
+            <h4 class="text-sm font-bold text-black flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-black"></i>
+              Score vs. Training Latency Trade-off
+            </h4>
+            <p class="text-xs text-zinc-500">Examines computational efficiency vs predictive accuracy.</p>
+            <div class="h-64">
+              <canvas id="chart-tradeoff"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-surface-card rounded-2xl p-6 border border-surface-border shadow-sm space-y-3">
+            <h4 class="text-sm font-bold text-black flex items-center gap-2" id="chart-diagnostics-title">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-black"></i>
+              Holdout Diagnostic Evaluation
+            </h4>
+            <p class="text-xs text-zinc-500" id="chart-diagnostics-subtitle">Diagnostic breakdown of the champion model.</p>
+            <div class="h-64 flex items-center justify-center">
+              <canvas id="chart-diagnostics"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feature Importance Chart -->
+        <div id="feature-importance-section" class="bg-surface-card rounded-2xl p-6 border border-surface-border shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-bold text-black flex items-center gap-2">
+              <i data-lucide="git-commit" class="w-4 h-4 text-black"></i>
+              Top Feature Importances (Champion Model)
+            </h4>
+            <span class="text-xs text-zinc-500 font-mono">Normalized Importance</span>
+          </div>
+          <div class="h-56">
+            <canvas id="chart-importance"></canvas>
+          </div>
+        </div>
+
+        <!-- Deployment & Standalone Python Code Section -->
+        <div id="code-export-section" class="bg-surface-card rounded-2xl p-6 sm:p-8 border border-surface-border shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 class="text-base font-extrabold text-black flex items-center gap-2">
+                <i data-lucide="terminal" class="w-5 h-5 text-black"></i>
+                Production Deployment & Inference Code
+              </h4>
+              <p class="text-xs text-zinc-500">Standalone Python script to load the serialized .joblib bundle and run predictions.</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <button id="btn-copy-code" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-300 text-zinc-800 flex items-center space-x-1.5 transition">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span>Copy Code</span>
+              </button>
+              <button id="btn-download-code" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-black hover:bg-zinc-800 text-white flex items-center space-x-1.5 transition">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                <span>Download .py</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden">
+            <pre class="p-4 text-xs font-mono text-zinc-100 overflow-x-auto max-h-96 leading-relaxed selection:bg-zinc-800"><code id="code-snippet-pre"># Loading inference code...</code></pre>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- MODAL: USER AUTHENTICATION (LOGIN / REGISTER) -->
+  <!-- ============================================== -->
+  <div id="modal-auth" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 rounded-2xl max-w-md w-full p-6 sm:p-8 space-y-6 shadow-2xl">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <div class="flex items-center space-x-2">
+          <div class="h-7 w-7 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs">
+            <i data-lucide="lock" class="w-4 h-4"></i>
+          </div>
+          <h3 class="font-extrabold text-black text-base" id="auth-modal-title">Sign In to AutoOptML</h3>
+        </div>
+        <button id="btn-close-auth" class="text-zinc-400 hover:text-black p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Auth Tabs: Sign In / Create Account -->
+      <div class="flex rounded-lg bg-zinc-100 p-1 border border-zinc-200">
+        <button id="tab-login" class="flex-1 py-1.5 text-xs font-bold rounded-md bg-white text-black shadow-sm transition">
+          Sign In
+        </button>
+        <button id="tab-register" class="flex-1 py-1.5 text-xs font-bold rounded-md text-zinc-500 hover:text-black transition">
+          Create Account
+        </button>
+      </div>
+
+      <!-- Quick Demo Login Button -->
+      <button id="btn-modal-demo-login" class="w-full py-2.5 px-4 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-xs font-bold text-zinc-900 flex items-center justify-center space-x-2 transition">
+        <i data-lucide="zap" class="w-4 h-4 text-amber-500 fill-amber-500"></i>
+        <span>1-Click Quick Demo Login</span>
+      </button>
+
+      <div class="flex items-center my-3">
+        <div class="flex-grow border-t border-zinc-200"></div>
+        <span class="px-3 text-[11px] text-zinc-400 font-medium uppercase tracking-wider">Or with email</span>
+        <div class="flex-grow border-t border-zinc-200"></div>
+      </div>
+
+      <!-- Login Form -->
+      <form id="form-login" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Email or Username</label>
+          <input type="text" id="login-identifier" required class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-black focus:outline-none focus:border-black font-medium" placeholder="demo@autooptml.com">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Password</label>
+          <input type="password" id="login-password" required class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-black focus:outline-none focus:border-black font-medium" placeholder="••••••••">
+        </div>
+        <div id="login-error" class="hidden text-xs text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200"></div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs shadow transition">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-register" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Username</label>
+          <input type="text" id="reg-username" required class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-black focus:outline-none focus:border-black font-medium" placeholder="DataScientist1">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Email Address</label>
+          <input type="email" id="reg-email" required class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-black focus:outline-none focus:border-black font-medium" placeholder="name@domain.com">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-zinc-700 uppercase tracking-wider mb-1">Password (min 6 characters)</label>
+          <input type="password" id="reg-password" minlength="6" required class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-black focus:outline-none focus:border-black font-medium" placeholder="••••••••">
+        </div>
+        <div id="reg-error" class="hidden text-xs text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200"></div>
+        <button type="submit" class="w-full py-2.5 rounded-xl bg-black hover:bg-zinc-800 text-white font-bold text-xs shadow transition">
+          Create Account
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- DRAWER: SAVED EXPERIMENTS HISTORY -->
+  <!-- ============================================== -->
+  <div id="modal-experiments" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-end">
+    <div class="bg-white border-l border-zinc-200 h-full max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl flex flex-col justify-between overflow-y-auto">
+      
+      <div class="space-y-6">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+          <div class="flex items-center space-x-2">
+            <div class="h-8 w-8 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs">
+              <i data-lucide="history" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-black text-base">Experiment Database</h3>
+              <p class="text-xs text-zinc-500">Persistent historical runs stored in SQLite</p>
+            </div>
+          </div>
+          <button id="btn-close-experiments" class="text-zinc-400 hover:text-black p-1 rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <div id="experiments-list-container" class="space-y-3">
+          <!-- Populated via JS -->
+          <div class="p-6 text-center text-xs text-zinc-400 italic">No saved experiments yet. Execute an AutoML run to save.</div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-zinc-100 flex justify-end">
+        <button id="btn-experiments-done" class="px-4 py-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-xs font-bold text-black border border-zinc-300">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: PROJECT ABSTRACT -->
+  <!-- ============================================== -->
+  <div id="modal-abstract" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 rounded-2xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <h3 class="font-extrabold text-black text-base flex items-center gap-2">
+          <i data-lucide="book-open" class="w-5 h-5 text-black"></i>
+          System Abstract & Research Foundation
+        </h3>
+        <button id="btn-close-abstract" class="text-zinc-400 hover:text-black p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-zinc-700 space-y-4 leading-relaxed">
+        <div class="p-4 bg-zinc-50 rounded-xl border border-zinc-200 italic text-zinc-800">
+          "The Conditional Search-Space Optimiser for Algorithm and Architecture Selection is an AI-based web application that helps users choose the most suitable machine learning algorithm and configuration for their dataset. The user uploads a dataset, and the system automatically analyses its features, data types, missing values, size, and problem type such as classification or regression. Based on this analysis, it selects suitable algorithms and generates different configurations for testing. These models are trained and evaluated using appropriate performance metrics, and their results are compared to recommend the best-performing model. The system uses Python, Scikit-learn, and FastAPI to provide an easy-to-use platform for automated model selection. It reduces unnecessary model testing, minimizes manual effort, and helps users make faster and more reliable machine learning decisions."
+        </div>
+
+        <h4 class="font-bold text-black text-sm">Key Architectural Innovations:</h4>
+        <ul class="list-disc pl-5 space-y-1.5 text-zinc-600">
+          <li><strong>Meta-Feature Analysis:</strong> Extracts $N$, $P$, $N/P$, categorical density, and class balance metrics.</li>
+          <li><strong>Conditioned Pruning:</strong> Eliminates algorithms with computational mismatches ($O(N^2)$ kernels on large datasets, curse of dimensionality on wide tables, neural starvation on small datasets).</li>
+          <li><strong>Dynamic Architecture Conditioning:</strong> Generates tailored tree depths, regularization, and parameters without brute-force grid searching.</li>
+          <li><strong>Enterprise Persistence:</strong> Multi-user authentication, password encryption, and SQLite database storage for long-term experiment tracking.</li>
+        </ul>
+      </div>
+
+      <div class="pt-3 border-t border-zinc-100 flex justify-end">
+        <button id="btn-modal-close-action" class="px-4 py-2 rounded-lg bg-black hover:bg-zinc-800 text-xs font-bold text-white shadow">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Client Logic -->
+  <script src="/static/app.js"></script>
+</body>
+</html>

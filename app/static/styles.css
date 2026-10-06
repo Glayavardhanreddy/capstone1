@@ -1,0 +1,77 @@
+/* AutoOptML - Light Theme (White & Black) Minimalist Styles */
+
+/* Clean light scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+/* Stepper navigation items */
+.step-nav-item {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.step-nav-item.active {
+  border-color: #09090b !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  opacity: 1 !important;
+}
+.step-nav-item.completed {
+  border-color: #10b981 !important;
+  background-color: #f0fdf4 !important;
+  opacity: 0.95 !important;
+}
+
+.step-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background-color: #f4f4f5;
+  color: #71717a;
+  font-weight: 800;
+  font-size: 11px;
+  transition: all 0.2s ease;
+  border: 1px solid #e4e4e7;
+}
+
+.step-nav-item.active .step-badge {
+  background-color: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+.step-nav-item.completed .step-badge {
+  background-color: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+/* Code block formatting */
+pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Smooth card transitions */
+.transition-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.transition-card:hover {
+  border-color: #09090b;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
